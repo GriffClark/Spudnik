@@ -82,9 +82,14 @@ def open_new_window():
 
 
 def get_document_height():
-    time.sleep(3)
-    return driver.execute_script(
-        "return document.body.scrollHeight")  # this has to be recalculated as the webpage loads
+    try:
+        time.sleep(3)
+        return driver.execute_script(
+            "return document.body.scrollHeight")  # this has to be recalculated as the webpage loads
+    except:
+        print("couldn't get document height. Defaulting to 500")
+        return 500
+
 
 
 # INIT
