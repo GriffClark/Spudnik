@@ -31,49 +31,72 @@ options.add_experimental_option("prefs", {  # TODO why isn't this getting rid of
 PATH = "C:\Program Files (x86)\chromedriver.exe"
 driver = webdriver.Chrome(PATH, options=options)
 frame = ""
+driver.fullscreen_window()
+
+class Stack:
+    def __init__(self):
+        self.items = []
+
+    def isEmpty(self):
+        return self.items == []
+
+    def push(self, item):
+        self.items.append(item)
+
+    def pop(self):
+        return self.items.pop()
+
+    def peek(self):
+        return self.items[len(self.items) - 1]
+
+    def size(self):
+        return len(self.items)
 
 
 def smooth_scroll():
-    default_scroll_value = 800
+    # this method is designed to confuse any detection software looking for continuous scroll patterns
+    default_scroll_distance = 800
     # this system of scrolling is meant to simulate how people scroll. We go down towards a specific element,
-    target_location = random.randint(get_current_location() + default_scroll_value - 100,
-                                     get_current_location() + default_scroll_value + 100) #this is where we want to end up
-    scroll_breakup_value = random.randint(10, 50)
-    scroll_distance = (target_location - get_current_location()) / scroll_breakup_value
+
+    if location_history.size() <= 0:
+        location_history.push(0)
+
+    target_location = random.randint(int(location_history.peek()),
+                                     int(location_history.peek()) + default_scroll_distance)  # this
+    # is where we want to end up
+
     i = 0
-    while i < scroll_breakup_value:
-        print(f"\naction " + str(i) + "/" + str(scroll_breakup_value) + " (max)")
-        time_sleep_now = random.randint(time_sleep_max / 2, time_sleep_max)
+    steps = 150
+    while i < steps:  # don't care if we get stuck here or not
+        time_sleep_max = 115
+        time_sleep_now = random.randint(int(time_sleep_max / 2), time_sleep_max)
         time.sleep(time_sleep_now / 1000)
-        if target_location <= get_current_location():
+        if target_location <= get_y_offset():
             break
         else:
-            location_history.append(get_current_location())
-            driver.execute_script("window.scrollBy(" + str(get_current_location()) + "," + str(
-                get_current_location() + scroll_distance) + ")", "")
-            print(str(int((get_current_location() / get_document_height()) * 100)) + "% done")
-            if check_if_stuck():
-                # if we're stuck, break out of the loop and restart
-                print("smooth scroll claims to be stuck, but it's notorious for lying")
-                break
-            else:
-                print(f"DEBUG: location history: \n" + str(location_history))
+            driver.execute_script(
+                "window.scrollBy(" + str(location_history.pop()) + "," + str(target_location / steps) + ")", "")
+            location_history.push(get_y_offset())
+            s = str(location_history.peek()) # print statement was being weird
+            print( s + "/" + str(get_document_height()) + " " + str(datetime.now()))
         i += 1
+        if check_if_stuck():
+            i = steps #this should break us out of the loop
 
-
-def get_current_location():
-    return driver.execute_script("return window.pageYOffset;");
+def get_y_offset():
+    # TODO I don't think the pageYOffset method works, but accounted for it in smooth_scroll
+    return int(driver.execute_script("return window.pageYOffset;"))
 
 
 def send_modulated_input(data, path, selectorType):
-    # TODO selectorType should be enum
+    # TODO selectorType should be string
     max_attempts = 5
     for i in range(max_attempts):
         try:
             for x in data:
-                if selectorType == 0:
+                if selectorType == "xpath":
                     driver.find_element_by_xpath(path).send_keys(x)
-                elif selectorType == 1:
+                elif selectorType == "id":
                     driver.find_element_by_id(path).send_keys(x)
                 time.sleep((random.randint(65, 85)) / 1000)
             time.sleep(3)
@@ -91,7 +114,7 @@ def wait_for_webpage_to_load():
 def log_into_google():
     driver.get("https://www.google.com/")
     driver.find_element_by_xpath("//*[@id=\"gb_70\"]").click()
-    send_modulated_input(default_email, "//*[@id=\"identifierId\"]", 0)
+    send_modulated_input(default_email, "//*[@id=\"identifierId\"]", "xpath")
     driver.find_element_by_xpath("//*[@id=\"identifierId\"]").send_keys(Keys.ENTER)
     wait_for_webpage_to_load()
     try:
@@ -101,7 +124,7 @@ def log_into_google():
     except:
         print("failed finding pwd field 1")
         try:
-            send_modulated_input("ea;oiu*&0293%", "//*[@id=\"password\"]/div[1]/div/div[1]/input", 0)
+            send_modulated_input("ea;oiu*&0293%", "//*[@id=\"password\"]/div[1]/div/div[1]/input", "xpath")
         except:
             print("failed finding pwd field 2")
     driver.find_element_by_xpath(
@@ -111,6 +134,7 @@ def log_into_google():
     time.sleep(5)
     global logged_into_google
     logged_into_google = True
+    print("logged into Google")
 
 
 def log_into_reddit():
@@ -120,20 +144,11 @@ def log_into_reddit():
     wait_for_webpage_to_load()
     frame = driver.find_element_by_xpath("//*[@id=\"SHORTCUT_FOCUSABLE_DIV\"]/div[3]/div[2]/div/iframe")
     driver.switch_to.frame(frame)
-    send_modulated_input(default_username, "loginUsername", 1)
-    send_modulated_input(default_password, "loginPassword", 1)
+    send_modulated_input(default_username, "loginUsername", "id")
+    send_modulated_input(default_password, "loginPassword", "id")
     driver.find_element_by_id("loginPassword").send_keys(Keys.ENTER)
     wait_for_webpage_to_load()
-
-
-def log_into_facebook():
-    driver.get("https://www.facebook.com/")
-    wait_for_webpage_to_load()
-    send_modulated_input(default_email, "//*[@id=\"email\"]", 0)
-    send_modulated_input(default_password, "//*[@id=\"pass\"]", 0)
-    driver.find_element_by_xpath("//*[@id=\"pass\"]").send_keys(Keys.ENTER)
-    wait_for_webpage_to_load()
-
+    print ("logged into Reddit")
 
 def log_into_facebook_and_instagram():
     driver.get("https://www.instagram.com/")
@@ -141,15 +156,15 @@ def log_into_facebook_and_instagram():
     driver.find_element_by_xpath(
         "/html/body/div[1]/section/main/article/div[2]/div[1]/div/form/div[6]/button/span[2]").click()
     wait_for_webpage_to_load()
-    send_modulated_input(default_email, "//*[@id=\"email\"]", 0)
-    send_modulated_input(default_password, "//*[@id=\"pass\"]", 0)
+    send_modulated_input(default_email, "//*[@id=\"email\"]", "xpath")
+    send_modulated_input(default_password, "//*[@id=\"pass\"]", "xpath")
     driver.find_element_by_xpath("//*[@id=\"pass\"]").send_keys(Keys.ENTER)
     wait_for_webpage_to_load()
-
+    print ("logged into Instagram, and Facebook by extension")
 
 def check_if_stuck():
-    if len(location_history) > 3 and location_history[-1] == location_history[
-        -2]:  # first part is there because first few values will often be 0 as the webpage loads
+    if location_history.size() > 3 and location_history.items[0] == location_history.items[1]:
+        # first part is there because first few values will often be 0 as the webpage loads
         print("we're stuck :/ This probably means we reached the end of the page")
         return True
     else:
@@ -162,18 +177,21 @@ def get_location_history():
 
 def open_new_window():
     print("DEBUG: dumping old location history...")
-    print(get_location_history())
-    print("loading in a new page...")
+    print(get_location_history().items)
+    print("loading in a new page")
     website_selection = random.choice(website_list)
     driver.get(website_selection)
-    print("clearing location history...")
+    driver.fullscreen_window()
+    print("clearing cache")
     global location_history
-    location_history = []
+    location_history = Stack()
+    location_history.push(0)
 
 
 def scroll_through_social_media(stop_time_input):
     current_social_media_page = social_media_list[random.randint(0, int(len(social_media_list) - 1))]
     driver.get(current_social_media_page)
+    print("Going to spend " + str(stop_time_input) + "s scrollin through " + str(current_social_media_page))
     wait_for_webpage_to_load()
     start_time_sm = datetime.now()
     stop_time_sm = timedelta(
@@ -183,11 +201,12 @@ def scroll_through_social_media(stop_time_input):
     while elapsed_time <= stop_time_sm:
         elapsed_time = datetime.now() - start_time_sm
         smooth_scroll()
+        randomInt = random.randint(5,30)
+        time.sleep(randomInt)
 
 
 def get_document_height():
     try:
-        time.sleep(3)
         return driver.execute_script(
             "return document.body.scrollHeight")  # this has to be recalculated as the webpage loads
     except:
@@ -207,7 +226,6 @@ def screenshot_reddit_add():
 
 # INIT
 
-time_sleep_max = 350  # in ms
 website_list = [
     "https://www.bestbuy.com/site/laptop-computers/all-laptops/pcmcat138500050001.c?id=pcmcat138500050001&qp"
     "=parent_operatingsystem_facet%3DOperating%20System~Windows",
@@ -234,7 +252,8 @@ social_media_list = [
     "https://www.instagram.com/"
 ]
 
-location_history = []
+location_history = Stack()
+location_history.push(0)
 logged_into_reddit = False
 logged_into_google = False
 num_webpages_visited = 0  # this will be used to track how many webpages we've seen
@@ -243,19 +262,16 @@ default_email = "isaacMcCafferty081081@gmail.com"
 default_username = "isaacMcCafferty081"
 
 # set up the bot
-# log_into_facebook_and_instagram()
-# log_into_google()
-# log_into_reddit()
-scroll_through_social_media(100)
+log_into_facebook_and_instagram()
+log_into_google()
+log_into_reddit()
 
+elapsedTime = datetime.now()
 while True:
     # see if we should go to Reddit to view an ad, or if we should go to the interwebs to keep building our user profile
-    if num_webpages_visited > 0 and num_webpages_visited % 2 == 0:
-        driver.get("https://www.reddit.com/r/popular/")
-        # if we aren't logged into reddit, we should do that
-        # this assumes that we only have to log into reddit once per session
-        time.sleep(10)
-    # should go to reddit every ten webpages
+    if elapsedTime.second - datetime.now().second < 100:
+        scroll_through_social_media(random.randint(100, 500))
+        elapsedTime = datetime.now()
     open_new_window()
     num_webpages_visited += 1
     num_scrolls = 0  # resets how many scrolls have been taken on this page
@@ -264,7 +280,7 @@ while True:
     scroll_range_max = get_document_height() / 8  # whats the furthest you can move in one scroll
     # then hang out for a sec
     while num_scrolls < num_scrolls_to_complete:  # until we've scrolled as far as we're going to on this page...
-        if get_current_location() >= get_document_height():
+        if get_y_offset() >= get_document_height():
             # if you're most of the way through a document that can be far enough
             print("hit the bottom. Restarting this whole kerfluffle over again...")
             break
@@ -283,6 +299,7 @@ while True:
         try:
             l.click()
             time.sleep(3)  # allows time for the webpage to load
+            driver.switch_to.window(driver.window_handles[random.randint(len(driver.window_handles) -1)])
             if len(driver.window_handles) > 7:
                 driver.close()
         except:
