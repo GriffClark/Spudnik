@@ -33,6 +33,7 @@ driver = webdriver.Chrome(PATH, options=options)
 frame = ""
 driver.fullscreen_window()
 
+
 class Stack:
     def __init__(self):
         self.items = []
@@ -77,11 +78,12 @@ def smooth_scroll():
             driver.execute_script(
                 "window.scrollBy(" + str(location_history.pop()) + "," + str(target_location / steps) + ")", "")
             location_history.push(get_y_offset())
-            s = str(location_history.peek()) # print statement was being weird
-            print( s + "/" + str(get_document_height()) + " " + str(datetime.now()))
+            s = str(location_history.peek())  # print statement was being weird
+            print(s + "/" + str(get_document_height()) + " " + str(datetime.now()))
         i += 1
         if check_if_stuck():
-            i = steps #this should break us out of the loop
+            i = steps  # this should break us out of the loop
+
 
 def get_y_offset():
     # TODO I don't think the pageYOffset method works, but accounted for it in smooth_scroll
@@ -120,7 +122,7 @@ def log_into_google():
     try:
         send_modulated_input("ea;oiu*&0293%", "/html/body/div[1]/div[1]/div[2]/div/div[2]/div/div/div[2]/div/div["
                                               "1]/div/form/span/section/div/div/div[""1]/div[1]/div/div/div/div/div[""1]/div/div[1]/input",
-                             0)
+                             "xpath")
     except:
         print("failed finding pwd field 1")
         try:
@@ -148,7 +150,8 @@ def log_into_reddit():
     send_modulated_input(default_password, "loginPassword", "id")
     driver.find_element_by_id("loginPassword").send_keys(Keys.ENTER)
     wait_for_webpage_to_load()
-    print ("logged into Reddit")
+    print("logged into Reddit")
+
 
 def log_into_facebook_and_instagram():
     driver.get("https://www.instagram.com/")
@@ -160,7 +163,8 @@ def log_into_facebook_and_instagram():
     send_modulated_input(default_password, "//*[@id=\"pass\"]", "xpath")
     driver.find_element_by_xpath("//*[@id=\"pass\"]").send_keys(Keys.ENTER)
     wait_for_webpage_to_load()
-    print ("logged into Instagram, and Facebook by extension")
+    print("logged into Instagram, and Facebook by extension")
+
 
 def check_if_stuck():
     if location_history.size() > 3 and location_history.items[0] == location_history.items[1]:
@@ -181,7 +185,6 @@ def open_new_window():
     print("loading in a new page")
     website_selection = random.choice(website_list)
     driver.get(website_selection)
-    driver.fullscreen_window()
     print("clearing cache")
     global location_history
     location_history = Stack()
@@ -201,7 +204,7 @@ def scroll_through_social_media(stop_time_input):
     while elapsed_time <= stop_time_sm:
         elapsed_time = datetime.now() - start_time_sm
         smooth_scroll()
-        randomInt = random.randint(5,30)
+        randomInt = random.randint(5, 30)
         time.sleep(randomInt)
 
 
@@ -222,6 +225,11 @@ def screenshot_reddit_add():
         driver.get_screenshot_as_png()
     except:
         print("could not take picture of reddit ad")
+
+
+def gather_ad_data():
+    # go to a few pre-defined webpages, takes pictures of ads in know locations
+    return -1
 
 
 # INIT
@@ -262,48 +270,52 @@ default_email = "isaacMcCafferty081081@gmail.com"
 default_username = "isaacMcCafferty081"
 
 # set up the bot
-log_into_facebook_and_instagram()
 log_into_google()
+log_into_facebook_and_instagram()
 log_into_reddit()
 
 elapsedTime = datetime.now()
 while True:
     # see if we should go to Reddit to view an ad, or if we should go to the interwebs to keep building our user profile
-    if elapsedTime.second - datetime.now().second < 100:
+    print("T+: " + str(elapsedTime.second))
+    if elapsedTime.second - datetime.now().second > random.randint(100, 700):
         scroll_through_social_media(random.randint(100, 500))
         elapsedTime = datetime.now()
-    open_new_window()
     num_webpages_visited += 1
     num_scrolls = 0  # resets how many scrolls have been taken on this page
     num_scrolls_to_complete = random.randint(50, 500)  # maximum number of scrolls until we get bored and leave the
     # page, regardless of where we are
     scroll_range_max = get_document_height() / 8  # whats the furthest you can move in one scroll
     # then hang out for a sec
-    while num_scrolls < num_scrolls_to_complete:  # until we've scrolled as far as we're going to on this page...
-        if get_y_offset() >= get_document_height():
-            # if you're most of the way through a document that can be far enough
-            print("hit the bottom. Restarting this whole kerfluffle over again...")
+    if num_scrolls > 0 and num_scrolls % 7 == 0:
+        print("opening new webpage")
+        open_new_window()
+    elif get_y_offset() >= get_document_height():
+        # if you're most of the way through a document that can be far enough
+        print("hit the bottom. Restarting this whole kerfluffle over again...")
+        break
+    else:
+        smooth_scroll()
+        print("scrolled down a bit " + str(datetime.now()))
+        if check_if_stuck():
+            # if we're stuck, break out of the loop and restart
+            print("Stuck?: " + str(check_if_stuck()))
             break
-        else:
-            smooth_scroll()
-            print("default: scrolled down a bit")
-            if check_if_stuck():
-                # if we're stuck, break out of the loop and restart
-                break
         num_scrolls += 1
         # at this point, we have made a scroll action
         # Now, see if we should click a link on this webpage
         all_links = links = driver.find_elements_by_partial_link_text(
-            '')  # many of the things this finds won't be clickable, hence the try/catch block. This is intentional, as it can be used as a way to add randomness to how often we click
+            '')  # many of the things this finds won't be clickable, hence the try/catch block. This is intentional,
+        # as it can be used as a way to add randomness to how often we click
         l = links[(random.randint(0, len(links) - 1))]  # this is the link we will try to click
         try:
             l.click()
             time.sleep(3)  # allows time for the webpage to load
-            driver.switch_to.window(driver.window_handles[random.randint(len(driver.window_handles) -1)])
+            driver.switch_to.window(driver.window_handles[random.randint(len(driver.window_handles) - 1)])
             if len(driver.window_handles) > 7:
                 driver.close()
         except:
-            print("this element isn't clickable :(")
+            print("error clicking element " + str(l))
 
         # sometimes it should switch between tabs
         if num_scrolls % int((random.randint(1, 2)) * 1000) == 0:
