@@ -31,7 +31,6 @@ options.add_experimental_option("prefs", {  # TODO why isn't this getting rid of
 PATH = "C:\Program Files (x86)\chromedriver.exe"
 driver = webdriver.Chrome(PATH, options=options)
 frame = ""
-driver.fullscreen_window()
 
 
 class Stack:
@@ -78,20 +77,17 @@ def smooth_scroll():
             driver.execute_script(
                 "window.scrollBy(" + str(location_history.pop()) + "," + str(target_location / steps) + ")", "")
             location_history.push(get_y_offset())
-            s = str(location_history.peek())  # print statement was being weird
-            print(s + "/" + str(get_document_height()) + " " + str(datetime.now()))
+            # print(str(location_history.peek()) + "px" + "/" + str(get_document_height()) + "px " + str(datetime.now()))
         i += 1
         if check_if_stuck():
-            i = steps  # this should break us out of the loop
+            break;
 
 
 def get_y_offset():
-    # TODO I don't think the pageYOffset method works, but accounted for it in smooth_scroll
     return int(driver.execute_script("return window.pageYOffset;"))
 
 
 def send_modulated_input(data, path, selectorType):
-    # TODO selectorType should be string
     max_attempts = 5
     for i in range(max_attempts):
         try:
@@ -180,32 +176,45 @@ def get_location_history():
 
 
 def open_new_window():
-    print("DEBUG: dumping old location history...")
-    print(get_location_history().items)
-    print("loading in a new page")
+    # print("DEBUG: dumping old location history...")
+    # print(get_location_history().items)
     website_selection = random.choice(website_list)
     driver.get(website_selection)
-    print("clearing cache")
+    print("Going to " + website_selection)
     global location_history
     location_history = Stack()
     location_history.push(0)
 
 
 def scroll_through_social_media(stop_time_input):
+    """
+    TODO Need to interact with social media sites more organically. This will entail...
+    1) clicking on posts and
+    following links
+    2) chatting with other social media accounts
+    3) following and unfollowing new pages (can probably
+    use suggested)
+    4) making posts. Need to have posts include pictures of the same person, but be unique. Maybe
+    scrape other people's posts but change some elements to make them unique? Find/build a face generator and
+    super-impose the faces onto other photos?
+    5) organically commenting on other people's posts
+    """
     current_social_media_page = social_media_list[random.randint(0, int(len(social_media_list) - 1))]
     driver.get(current_social_media_page)
-    print("Going to spend " + str(stop_time_input) + "s scrollin through " + str(current_social_media_page))
+    print("Going to spend " + str(stop_time_input) + "s scrolling through " + str(current_social_media_page))
     wait_for_webpage_to_load()
-    start_time_sm = datetime.now()
-    stop_time_sm = timedelta(
+    stop_time_sm = get_elapsed_time() + timedelta(
         seconds=stop_time_input
     )
-    elapsed_time = datetime.now() - start_time_sm
-    while elapsed_time <= stop_time_sm:
-        elapsed_time = datetime.now() - start_time_sm
-        smooth_scroll()
-        randomInt = random.randint(5, 30)
-        time.sleep(randomInt)
+    while get_elapsed_time() <= stop_time_sm:
+        if check_if_stuck() is True:
+            break
+        else:
+            smooth_scroll()
+            take_screenshot(current_social_media_page)
+            look_at_post_time = random.randint(3, 15)
+            print("looking at a post for " + str(look_at_post_time) + "s")
+            time.sleep(look_at_post_time)
 
 
 def get_document_height():
@@ -217,14 +226,25 @@ def get_document_height():
         return 500
 
 
-def screenshot_reddit_add():
+default_file_location = "C:\\Users\\gclar\\PycharmProjects\\Spudnik\\Screenshots\\"  # TODO this is a bad
+
+
+def take_screenshot(webURL):
     # FIXME finish
-    try:
-        element = driver.find_element_by_class_name("img_ad")
-        eleWidth = element.get_attribute
-        driver.get_screenshot_as_png()
-    except:
-        print("could not take picture of reddit ad")
+    # TODO put time stamp in filename
+    # TODO figure out why + str(get_y_offset()) isn't working. Maybe it is...
+    split_url = webURL.split('/')
+    raw_datetime_array = str(datetime.now()).split()
+    raw_datetime = raw_datetime_array[1] + "_" + raw_datetime_array[0]
+    sanitized_datetime_array = raw_datetime.split(':')
+    sanitized_seconds = sanitized_datetime_array[2].split('.')[0]
+    sanitized_datetime = sanitized_datetime_array[0]  + sanitized_datetime_array[1] + sanitized_seconds
+
+    # files are named *website@hhmmss.png*
+    sanitized_url = split_url[2] + "@" + str(sanitized_datetime) # this line ultimately dictates file naming format
+
+    print("took screenshot " + str(sanitized_url) + ".png")
+    driver.save_screenshot(default_file_location + str(sanitized_url) + ".png")
 
 
 def gather_ad_data():
@@ -274,13 +294,20 @@ log_into_google()
 log_into_facebook_and_instagram()
 log_into_reddit()
 
-elapsedTime = datetime.now()
+
+def get_elapsed_time():
+    return (datetime.now() - startTime)
+
+
+last_visit_time = datetime.now()
+
 while True:
     # see if we should go to Reddit to view an ad, or if we should go to the interwebs to keep building our user profile
-    print("T+: " + str(elapsedTime.second))
-    if elapsedTime.second - datetime.now().second > random.randint(100, 700):
-        scroll_through_social_media(random.randint(100, 500))
-        elapsedTime = datetime.now()
+    print("T+: " + str(get_elapsed_time().seconds) + "s")
+
+    if (datetime.now() - last_visit_time).seconds <= 300:
+        scroll_through_social_media(random.randint(10, 50))
+        last_visit_time = datetime.now()
     num_webpages_visited += 1
     num_scrolls = 0  # resets how many scrolls have been taken on this page
     num_scrolls_to_complete = random.randint(50, 500)  # maximum number of scrolls until we get bored and leave the
@@ -292,7 +319,7 @@ while True:
         open_new_window()
     elif get_y_offset() >= get_document_height():
         # if you're most of the way through a document that can be far enough
-        print("hit the bottom. Restarting this whole kerfluffle over again...")
+        print("hit the bottom. Restarting this whole kerfluffle again... *sigh*")
         break
     else:
         smooth_scroll()
@@ -319,7 +346,7 @@ while True:
 
         # sometimes it should switch between tabs
         if num_scrolls % int((random.randint(1, 2)) * 1000) == 0:
-            # TODO make this hit way more often
+            # it may be beneficial to have this hit more often, but not sure how much it affects anything
             num_open_windows = len(driver.window_handles)
             try:
                 driver.switch_to.window(driver.window_handles[random.randint(num_open_windows)])
